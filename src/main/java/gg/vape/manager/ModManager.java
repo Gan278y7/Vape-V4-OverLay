@@ -77,6 +77,7 @@ import gg.vape.module.render.hud.NoHurtDelayHudModule;
 import gg.vape.module.render.hud.PotionEffectsHudModule;
 import gg.vape.module.render.hud.ReachDisplayHudModule;
 import gg.vape.module.render.hud.ScoreboardHudModule;
+import gg.vape.module.render.hud.ScoreboardTextReplacementModule;
 import gg.vape.module.render.hud.TimeChangerHudModule;
 import gg.vape.module.render.hud.WeatherChangerHudModule;
 import gg.vape.module.render.proj.Projectiles;
@@ -438,7 +439,7 @@ implements EventListener {
         ModRegistrationBuilder.create().setModule(new BlockhitAnimationHudModule()).addVersionConstraint(ForgeVersion.MC_1_8_9.S()).registerWith(this);
         this.registerModules(Stream.of(new NoHurtDelayHudModule(), new ArmorStatusHudModule(), new CompassHudModule(), new WeatherChangerHudModule(), new NoHurtCameraHudModule(), new TimeChangerHudModule(), new CoordinatesHudModule(), new FpsDisplayHudModule(), new ReachDisplayHudModule(), new NoFogHudModule(), new BlockOverlayHudModule()));
         ModRegistrationBuilder.create().setModule(new BlockRenderColorOverrideHudModule()).addVersionConstraints(ForgeVersion.MC_1_7_10.N(), ForgeVersion.MC_1_16_5.b()).registerWith(this);
-        this.registerModules(Stream.of(new ScoreboardHudModule(), new InventoryBlurHudModule()), ModManager::addMinecraft1206Constraint);
+        this.registerModules(Stream.of(new ScoreboardHudModule(), new ScoreboardTextReplacementModule(), new InventoryBlurHudModule()), ModManager::addMinecraft1206Constraint);
     }
 
     public int countEnabledModules(Category category) {

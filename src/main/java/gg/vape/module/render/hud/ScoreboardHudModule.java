@@ -2,6 +2,7 @@ package gg.vape.module.render.hud;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import gg.vape.Vape;
 import gg.vape.event.impl.EventScoreboardScores;
 import gg.vape.module.render.hud.HudModule;
 import gg.vape.module.render.hud.HudModuleGroup;
@@ -11,7 +12,6 @@ import gg.vape.utils.TimerUtil;
 import gg.vape.utils.Vec3d;
 import gg.vape.utils.render.GuiRenderPrimitives;
 import gg.vape.value.BooleanValue;
-import gg.vape.value.StringMapValue;
 import gg.vape.wrapper.impl.FontRenderer;
 import gg.vape.wrapper.impl.ForgeVersion;
 import gg.vape.wrapper.impl.GlStateManager;
@@ -32,7 +32,6 @@ public class ScoreboardHudModule
 extends HudModule {
     private final TimerUtil objectiveTimer = new TimerUtil();
     public final BooleanValue showScoreNumbers = BooleanValue.create(this, "Show score numbers", false);
-    public final StringMapValue textReplacements = (StringMapValue)StringMapValue.create(this, "Replace scoreboard text", "Find text", "Replace with").setBase64Encoded(true);
     private ScoreObjective objective;
 
     @Override
@@ -52,67 +51,70 @@ extends HudModule {
 
     public ScoreboardHudModule() {
         super("Scoreboard", HudModuleGroup.HUD, "scoreboard", ScoreboardHudFrame.class);
-        this.addValue(this.showScoreNumbers, this.textReplacements);
+        this.addValue(this.showScoreNumbers);
         this.setSuffix("Allows you to edit the Minecraft scoreboard");
     }
 
+    private Map<String, String> getTextReplacements() {
+        ScoreboardTextReplacementModule module = Vape.INSTANCE.getModManager().getMod(ScoreboardTextReplacementModule.class);
+        if (module == null) {
+            return java.util.Collections.emptyMap();
+        }
+        return module.textReplacements.getValue();
+    }
 
-    private String replaceScoreText(String searchText, String formattedText, String replacement) {
-        String originalText = formattedText;
-        char[] formattedCharacters = formattedText.toCharArray();
+    private String stripFormattingCodes(String input) {
+        if (input == null || input.isEmpty()) {
+            return "";
+        }
         StringBuilder visibleTextBuilder = new StringBuilder();
-        for (int index = 0; index < formattedCharacters.length; ++index) {
-            char character = formattedCharacters[index];
-            if (character == '\u00a7') {
+        for (int index = 0; index < input.length(); ++index) {
+            char character = input.charAt(index);
+            if (character == '&' || character == '\u00a7') {
                 ++index;
-                continue;
-            }
-            if (character > 1000) {
                 continue;
             }
             visibleTextBuilder.append(character);
         }
-        String visibleText = visibleTextBuilder.toString().toLowerCase();
-        String lowercaseFormattedText = formattedText.toLowerCase();
-        String lowercaseSearchText = searchText.toLowerCase();
-        if (visibleText.contains(lowercaseSearchText)) {
-            char[] searchCharacters = lowercaseSearchText.toCharArray();
-            char[] textCharacters = lowercaseFormattedText.toCharArray();
-            int matchedCharacters = 0;
-            int matchStart = -1;
-            int matchEnd = -1;
-            for (int index = 0; index < textCharacters.length; ++index) {
-                if (matchedCharacters > searchCharacters.length - 1) {
-                    continue;
+        return visibleTextBuilder.toString().toLowerCase();
+    }
+
+    private int getRawIndexForVisibleIndex(String input, int visibleIndex) {
+        int visibleCount = 0;
+        for (int rawIndex = 0; rawIndex < input.length(); ++rawIndex) {
+            char character = input.charAt(rawIndex);
+            if (character == '&' || character == '\u00a7') {
+                if (rawIndex + 1 < input.length()) {
+                    ++rawIndex;
                 }
-                char character = textCharacters[index];
-                if (character == searchCharacters[matchedCharacters]) {
-                    if (matchStart == -1) {
-                        matchStart = index;
-                    }
-                    if (++matchedCharacters == searchCharacters.length) {
-                        matchEnd = index;
-                    }
-                    continue;
-                }
-                if (matchStart != -1 && character == '\u00a7') {
-                    ++index;
-                }
+                continue;
             }
-            if (matchStart != -1 && matchEnd > matchStart) {
-                StringBuilder replacedText = new StringBuilder();
-                for (int index = 0; index < textCharacters.length; ++index) {
-                    if (index < matchStart || index > matchEnd) {
-                        replacedText.append(textCharacters[index]);
-                    }
-                    if (index == matchStart) {
-                        replacedText.append(replacement);
-                    }
-                }
-                return replacedText.toString();
+            if (visibleCount == visibleIndex) {
+                return rawIndex;
             }
+            ++visibleCount;
         }
-        return originalText;
+        return input.length();
+    }
+
+    private String replaceScoreText(String searchText, String formattedText, String replacement) {
+        if (searchText == null || searchText.isEmpty() || formattedText == null || formattedText.isEmpty()) {
+            return formattedText;
+        }
+        String normalizedReplacement = replacement == null ? "" : replacement.replace('&', '\u00a7');
+        String visibleSearchText = this.stripFormattingCodes(searchText);
+        String visibleFormattedText = this.stripFormattingCodes(formattedText);
+        int visibleStart = visibleFormattedText.indexOf(visibleSearchText.toLowerCase());
+        if (visibleStart < 0) {
+            return formattedText;
+        }
+        int rawStart = this.getRawIndexForVisibleIndex(formattedText, visibleStart);
+        int rawEnd = this.getRawIndexForVisibleIndex(formattedText, visibleStart + visibleSearchText.length());
+        StringBuilder replacedText = new StringBuilder();
+        replacedText.append(formattedText, 0, rawStart);
+        replacedText.append(normalizedReplacement);
+        replacedText.append(formattedText.substring(rawEnd));
+        return replacedText.toString();
     }
 
     public Vec3d renderScoreboard(double x, double y, boolean drawBackground) {
@@ -156,7 +158,7 @@ extends HudModule {
         int left = (int)x + 1;
         int rowIndex = 0;
         double renderedHeight = 0.0;
-        Map<String, String> replacements = this.textReplacements.getValue();
+        Map<String, String> replacements = this.getTextReplacements();
         for (Score score : scores) {
             ++rowIndex;
             ScorePlayerTeam team = scoreboard.getPlayersTeam(score.getOwner());
