@@ -4,6 +4,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import gg.vape.Vape;
 import gg.vape.event.impl.EventScoreboardScores;
+import gg.vape.module.render.TextReplaceV2;
 import gg.vape.module.render.hud.HudModule;
 import gg.vape.module.render.hud.HudModuleGroup;
 import gg.vape.module.render.hud.ScoreboardVisibleScorePredicate;
@@ -56,11 +57,15 @@ extends HudModule {
     }
 
     private Map<String, String> getTextReplacements() {
-        ScoreboardTextReplacementModule module = Vape.INSTANCE.getModManager().getMod(ScoreboardTextReplacementModule.class);
-        if (module == null) {
-            return java.util.Collections.emptyMap();
+        TextReplaceV2 v2 = Vape.INSTANCE.getModManager().getMod(TextReplaceV2.class);
+        if (v2 != null && v2.isEnabled()) {
+            return v2.textReplacements.getValue();
         }
-        return module.textReplacements.getValue();
+        ScoreboardTextReplacementModule module = Vape.INSTANCE.getModManager().getMod(ScoreboardTextReplacementModule.class);
+        if (module != null && module.isEnabled()) {
+            return module.textReplacements.getValue();
+        }
+        return java.util.Collections.emptyMap();
     }
 
     private String stripFormattingCodes(String input) {
@@ -98,6 +103,10 @@ extends HudModule {
     }
 
     private String replaceScoreText(String searchText, String formattedText, String replacement) {
+        TextReplaceV2 v2 = Vape.INSTANCE.getModManager().getMod(TextReplaceV2.class);
+        if (v2 != null) {
+            return v2.applySingleReplacement(formattedText, searchText, replacement);
+        }
         if (searchText == null || searchText.isEmpty() || formattedText == null || formattedText.isEmpty()) {
             return formattedText;
         }
@@ -144,10 +153,23 @@ extends HudModule {
         scores = visibleScores.size() > 15
                 ? Lists.newArrayList(Iterables.skip(visibleScores, scores.size() - 15))
                 : visibleScores;
-        int scoreboardWidth = fontRenderer.getStringWidth(this.objective.getDisplayNameText());
+        Map<String, String> replacements = this.getTextReplacements();
+        String title = this.objective.getDisplayNameText();
+        for (Map.Entry<String, String> replacement : replacements.entrySet()) {
+            title = this.replaceScoreText(
+                    replacement.getKey(), title, replacement.getValue());
+        }
+        int scoreboardWidth = fontRenderer.getStringWidth(title);
+        List<String> formattedNames = new ArrayList<String>();
         for (Score score : scores) {
             ScorePlayerTeam team = scoreboard.getPlayersTeam(score.getOwner());
-            String scoreLine = ScorePlayerTeam.formatPlayerName(team, score.getOwner()) + ":";
+            String playerName = ScorePlayerTeam.formatPlayerName(team, score.getOwner());
+            for (Map.Entry<String, String> replacement : replacements.entrySet()) {
+                playerName = this.replaceScoreText(
+                        replacement.getKey(), playerName, replacement.getValue());
+            }
+            formattedNames.add(playerName);
+            String scoreLine = playerName + ":";
             if (includeScoreNumbers) {
                 scoreLine += " \u00a7c" + score.getScore();
             }
@@ -158,15 +180,10 @@ extends HudModule {
         int left = (int)x + 1;
         int rowIndex = 0;
         double renderedHeight = 0.0;
-        Map<String, String> replacements = this.getTextReplacements();
+        int scoreIdx = 0;
         for (Score score : scores) {
+            String playerName = formattedNames.get(scoreIdx++);
             ++rowIndex;
-            ScorePlayerTeam team = scoreboard.getPlayersTeam(score.getOwner());
-            String playerName = ScorePlayerTeam.formatPlayerName(team, score.getOwner());
-            for (Map.Entry<String, String> replacement : replacements.entrySet()) {
-                playerName = this.replaceScoreText(
-                        replacement.getKey(), playerName, replacement.getValue());
-            }
             String scoreText = "\u00a7c" + score.getScore();
             int rowY = bottom - rowIndex * fontRenderer.getFontHeight();
             if (drawBackground) {
@@ -178,22 +195,13 @@ extends HudModule {
                         backgroundHeight, new Color(0x50000000, true));
             }
             renderedHeight += fontRenderer.getFontHeight();
-            if (ForgeVersion.MC_1_16_5.d()) {
-                fontRenderer.J(MatrixStack.A(), new TextComponent(team, score.getOwner()), left, rowY, -1);
-            } else {
-                fontRenderer.drawString(playerName, left, rowY, 0x20FFFFFF);
-            }
+            fontRenderer.drawString(playerName, left, rowY, 0x20FFFFFF);
             if (includeScoreNumbers) {
                 fontRenderer.drawString(scoreText,
                         left + scoreboardWidth - fontRenderer.getStringWidth(scoreText), rowY, 3648127);
             }
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
             if (rowIndex == scores.size()) {
-                String title = this.objective.getDisplayNameText();
-                for (Map.Entry<String, String> replacement : replacements.entrySet()) {
-                    title = this.replaceScoreText(
-                            replacement.getKey(), title, replacement.getValue());
-                }
                 if (drawBackground) {
                     GuiRenderPrimitives.C(left - 2, rowY - fontRenderer.getFontHeight() - 1,
                             scoreboardWidth + 2.0, fontRenderer.getFontHeight(),
@@ -201,15 +209,9 @@ extends HudModule {
                     GuiRenderPrimitives.C(left - 2, rowY - 1, scoreboardWidth + 2.0, 1.0,
                             new Color(0x50000000, true));
                 }
-                if (ForgeVersion.MC_1_16_5.d()) {
-                    fontRenderer.J(MatrixStack.A(), this.objective.getDisplayNameComponent(),
-                            left + scoreboardWidth / 2 - fontRenderer.getStringWidth(title) / 2,
-                            rowY - fontRenderer.getFontHeight(), -1);
-                } else {
-                    fontRenderer.drawString(title,
-                            left + scoreboardWidth / 2 - fontRenderer.getStringWidth(title) / 2,
-                            rowY - fontRenderer.getFontHeight(), 0x20FFFFFF);
-                }
+                fontRenderer.drawString(title,
+                        left + scoreboardWidth / 2 - fontRenderer.getStringWidth(title) / 2,
+                        rowY - fontRenderer.getFontHeight(), 0x20FFFFFF);
             }
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         }

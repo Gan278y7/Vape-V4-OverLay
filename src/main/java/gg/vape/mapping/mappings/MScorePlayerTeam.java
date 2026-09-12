@@ -18,6 +18,10 @@ extends Mapping {
     private MappingField playerPrefixField;
     private MappingField colorField;
 
+    public MappingMethod getFormatPlayerNameMethod() {
+        return this.formatPlayerNameMethod;
+    }
+
     private String formatPlayerName(Object team, String playerName) {
         return (String)this.formatPlayerNameMethod.invokeObject(null, team, playerName);
     }

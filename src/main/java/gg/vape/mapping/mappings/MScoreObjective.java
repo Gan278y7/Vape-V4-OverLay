@@ -13,6 +13,10 @@ extends Mapping {
     private MappingMethod formattedDisplayNameMethod;
 
 
+    public MappingMethod getDisplayNameMethod() {
+        return this.displayNameOrScoreboardMethod;
+    }
+
     public static Object getFormattedDisplayName(MScoreObjective mapping, Object objective) {
         return mapping.getFormattedDisplayName(objective);
     }

@@ -65,6 +65,8 @@ extends MappingTaskSet {
         this.D.add(new PlayerControllerMPEventMappingTask());
         this.D.add(new PlayerControllerMPTransformer());
         this.D.add(new ScoreboardScoresEventMappingTask());
+        this.D.add(new ScorePlayerTeamFormatPlayerNameMappingTask());
+        this.D.add(new ScoreObjectiveDisplayNameMappingTask());
         if (ForgeVersion.MC_1_21_4.v()) {
             this.D.add(new RenderManagerEntityMappingTask());
         }
