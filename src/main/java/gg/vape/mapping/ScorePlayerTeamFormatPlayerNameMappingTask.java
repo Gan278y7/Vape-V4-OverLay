@@ -1,6 +1,8 @@
 package gg.vape.mapping;
 
 import gg.vape.Vape;
+import gg.vape.mapping.MappedClasses;
+import gg.vape.mapping.MappingMethod;
 import gg.vape.module.render.TextReplaceV2;
 import gg.vape.wrapper.impl.ForgeVersion;
 import javassist.CannotCompileException;

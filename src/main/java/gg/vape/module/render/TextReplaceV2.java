@@ -17,7 +17,7 @@ public class TextReplaceV2 extends Mod {
             this, "Replace scoreboard text", "Find text", "Replace with").setBase64Encoded(true);
 
     public TextReplaceV2() {
-        super("Text Replace V2", Category.RENDER.getColor(), Category.RENDER, "Replaces text shown on the scoreboard");
+        super("Text Replace V2", -7926107, Category.RENDER, "Replaces text shown on the scoreboard");
         this.addValue(this.textReplacements);
         this.setSuffix("Replaces text shown on the scoreboard");
     }
